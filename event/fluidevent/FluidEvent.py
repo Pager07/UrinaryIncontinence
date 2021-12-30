@@ -6,6 +6,8 @@ from scipy.integrate import quad
 import matplotlib.pyplot as plt
 import scipy.stats
 import numpy as np
+
+from fluideventhistory import FluidEventHistory
 '''
 Suggested sigma:3-6 mins
 Suggested mu: 40-60 mins
@@ -17,13 +19,6 @@ class ModelParameters:
     sigma: int = 4.6 #suggested [3-6] min
     maxFillingRate: int = 5 #suggest [4-8]ml/min
 
-@dataclass
-class FluidEventHistory:
-    bladderFillingLevels: np.ndarray = np.array([])
-    bodyStorage : np.ndarray = np.array([])
-    workoutLoss : np.ndarray = np.array([])
-    totalLiquidLoss: np.ndarray = np.array([])
-    isEventFinished: bool = False
 
 modelParameters = ModelParameters(mu=50,sigma=4)
 
@@ -45,7 +40,7 @@ class FluidEvent:
         self.workoutIntensity = 0
 
         self.currentBladderFillingLevel,self.currentBodyStorage, self.currentWorkoutLoss = 0,0,0
-
+        self.currentEventMins = 0
         self.eventHistory = FluidEventHistory()
         pass
 
@@ -92,31 +87,55 @@ class FluidEvent:
         return workoutLiquidLoss[workoutIntensity]
     
     def updateCurrentBodyStorage(self):
+        """Find the total amount of liquid stored in the body.
+        """
         if self.getTotalLiquidLoss() + self.body() <= self.intake:
             self.currentBodyStorage += self.body()
         else:
             self.currentBodyStorage += max(0,self.intake - self.getTotalLiquidLoss())
 
-    def updateCurrentBladderFillingLevels(self,t):
+    def updateCurrentBladderFillingLevels(self,t:int):
+        """Find the total amount of liquid accumulated in the bladder at time t.
+
+        Args:
+            t (int):  Time in minutes after the drinking the liquid. AKA time after fluidevent started.
+
+        """
         if self.getTotalLiquidLoss() + self.bladderFilling(t) <= self.intake:
             self.currentBladderFillingLevel += self.bladderFilling(t)
         else:
             self.currentBladderFillingLevel += max(0,self.intake - self.getTotalLiquidLoss())
-            # print(self.currentBladderFillingLevel)
         
     def updateCurrentWorkoutLoss(self,intensityLevel:int=0):
+        """Find the total amount of water lost in workout.
+
+        Args:
+            intensityLevel (int, optional): Exercise intensity level. Defaults to 0.
+        """
         if self.getTotalLiquidLoss() + self.workout(intensityLevel) <= self.intake:
             self.currentWorkoutLoss += self.workout(intensityLevel)
         else:
             self.currentWorkoutLoss += max(0,self.intake - self.getTotalLiquidLoss())
             
-    def getTotalLiquidLoss(self):
+    def getTotalLiquidLoss(self)->float:
+        """Get the total amount of fluid taken out by body so far
+
+        Returns:
+            float: The total amount of fluid take out by body so far
+        """
         return self.currentBladderFillingLevel + self.currentBodyStorage + self.currentWorkoutLoss
 
-    def isFluidEventFinished(self):
+    def isFluidEventFinished(self)->bool:
+        """Returns True if body has finished processing the fluid.
+
+        Returns:
+            bool: True if the body has finished processing the fluid
+        """
         return self.getTotalLiquidLoss() >= self.intake
     
     def updateEventHistory(self):
+        """Updates the event history after time t
+        """
         self.eventHistory.bladderFillingLevels = np.append(self.eventHistory.bladderFillingLevels,
                                                    self.currentBladderFillingLevel)
         self.eventHistory.bodyStorage = np.append(self.eventHistory.bodyStorage,self.currentBodyStorage)
@@ -124,17 +143,24 @@ class FluidEvent:
         self.eventHistory.totalLiquidLoss = np.append(self.eventHistory.totalLiquidLoss,self.getTotalLiquidLoss())
         self.eventHistory.isEventFinished = self.isFluidEventFinished()
 
-    def forward(self,t):
+    def forward(self)->FluidEventHistory:
+        """Process the FluidEvent for a single mintue.
+           Returns FluidEvent history
+        Returns:
+            (FluidEventHistory): EventHistory containing the log of fluidEvent.
+        """
+        self.currentEventMins += 1
         self.updateCurrentBodyStorage()
 
-        self.updateCurrentBladderFillingLevels(t)
+        self.updateCurrentBladderFillingLevels(self.currentEventMins)
 
         self.updateCurrentWorkoutLoss(self.workoutIntensity)
 
         self.updateEventHistory()
-        # print(f't:{t},totalLiquidIn:{self.totalLiquidLoss}')
-        return self.eventHistory
         
+        return self.eventHistory
+
+
 
     
         
