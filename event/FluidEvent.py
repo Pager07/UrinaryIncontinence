@@ -141,7 +141,7 @@ class FluidEvent:
         self.eventHistory.bodyStorage = np.append(self.eventHistory.bodyStorage,self.currentBodyStorage)
         self.eventHistory.workoutLoss = np.append(self.eventHistory.workoutLoss,self.currentWorkoutLoss)
         self.eventHistory.totalLiquidLoss = np.append(self.eventHistory.totalLiquidLoss,self.getTotalLiquidLoss())
-        self.eventHistory.isEventFinished = self.isFluidEventFinished()
+        self.eventHistory.isFinished = self.isFluidEventFinished()
 
     def forward(self)->FluidEventHistory:
         """Process the FluidEvent for a single mintue.
@@ -174,7 +174,7 @@ if '__main__' == __name__:
     totalFillings  = []
     for t in range(1440):
         eventHistory = event.forward()
-        if eventHistory.isEventFinished:
+        if eventHistory.isFinished:
             print(f'finished:{t}')
             break
     # fig,axes = plt.subplots(4,1)

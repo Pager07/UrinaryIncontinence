@@ -6,4 +6,4 @@ class FluidEventHistory:
     bodyStorage : np.ndarray = np.array([])
     workoutLoss : np.ndarray = np.array([])
     totalLiquidLoss: np.ndarray = np.array([])
-    isEventFinished: bool = False 
+    isFinished: bool = False 

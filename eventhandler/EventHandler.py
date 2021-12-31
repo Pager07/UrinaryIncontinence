@@ -2,8 +2,9 @@ from event import FluidEvent
 import numpy as np
 import event
 from eventhistory import FluidEventHistory
+import matplotlib.pyplot as plt
 print('event handler')
-class EventHandler:
+class EventHandler(FluidEvent):
     def __init__(self) -> None:
         self.liveEvents = []
         self.deadEvents = []
@@ -23,7 +24,15 @@ class EventHandler:
         Returns:
             bool: True if the body has finished processing the fluid
         """
-        return self.getTotalLiquidLoss() >= self.intake
+        return len(self.liveEvents) == 0
+    
+    def getTotalLiquidLoss(self)->float:
+        """Get the total amount of fluid taken out by body so far
+
+        Returns:
+            float: The total amount of fluid take out by body so far
+        """
+        return self.currentBladderFillingLevel + self.currentBodyStorage + self.currentWorkoutLoss
 
     def updateEventHistory(self):
         """Updates the event history after time t
@@ -33,7 +42,7 @@ class EventHandler:
         self.eventHistory.bodyStorage = np.append(self.eventHistory.bodyStorage,self.currentBodyStorage)
         self.eventHistory.workoutLoss = np.append(self.eventHistory.workoutLoss,self.currentWorkoutLoss)
         self.eventHistory.totalLiquidLoss = np.append(self.eventHistory.totalLiquidLoss,self.getTotalLiquidLoss())
-        self.eventHistory.isEventFinished = self.isFluidEventFinished()
+        self.eventHistory.isFinished = self.isFluidEventFinished()
 
     def updateBladderCurrentFillingLevels(self,eventHistory:FluidEventHistory):
         if len(eventHistory.bladderFillingLevels)>1:
@@ -42,7 +51,7 @@ class EventHandler:
         else:
             delta = eventHistory.bladderFillingLevels[-1] - 0
             self.currentBladderFillingLevel +=  delta
-        
+    
     def updateBodyStorage(self,eventHistory:FluidEventHistory):
         if len(eventHistory.bodyStorage)>1:
             delta = eventHistory.bodyStorage[-1] - eventHistory.bodyStorage[-2]
@@ -59,13 +68,6 @@ class EventHandler:
             delta = eventHistory.workoutLoss[-1] - 0
             self.currentWorkoutLoss +=  delta
 
-    def updateTotalLiquidLoss(self,eventHistory:FluidEventHistory):
-        if len(eventHistory.totalLiquidLoss)>1:
-            delta = eventHistory.totalLiquidLoss[-1] - eventHistory.totalLiquidLoss[-2]
-            self.totalLiquidLoss += delta 
-        else:
-            delta = eventHistory.totalLiquidLoss[-1] - 0
-            self.totalLiquidLoss +=  delta
     
     def handleSingleEvent(self,fluidEvent:FluidEventHistory):
         """Given a single fluid event, it will update the liquid loss
@@ -77,9 +79,8 @@ class EventHandler:
         self.updateBladderCurrentFillingLevels(eventHistory)
         self.updateBodyStorage(eventHistory)
         self.updateWorkoutLoss(eventHistory)
-        self.updateTotalLiquidLoss(eventHistory)
         
-        if self.eventHistory.isEventFinished:
+        if eventHistory.isFinished:
             self.deadEvents.append(fluidEvent)
             self.liveEvents.remove(fluidEvent)
      
@@ -87,6 +88,9 @@ class EventHandler:
     def forward(self):
         for event in self.liveEvents:
             self.handleSingleEvent(event)
+        #after going through the live-events once; update the event history once 
+        self.updateEventHistory()
+        return self.eventHistory
 
     
 
@@ -98,22 +102,32 @@ if __name__ == '__main__':
     handler.addEvent(fluidEvent2)
     
     # handler.forward()
-    # for t in range(1440):
-    #     eventHistory = handler.forward(t)
-    #     if eventHistory.isEventFinished:
-    #         print(f'finished:{t}')
-    #         break
-     
-    # fig,axes = plt.subplots(4,1)
-    # axes[0].plot(eventHistory.totalLiquidLoss[:60])
-    # axes[1].plot(eventHistory.bladderFillingLevels[:60])
-    # axes[2].plot(eventHistory.workoutLoss[:60])
-    # axes[3].plot(eventHistory.bodyStorage[:60])
     for t in range(1440):
-        handler.forward()
-        print(f'{t},{handler.liveEvents[0].eventHistory.isEventFinished},{handler.currentBladderFillingLevel},{handler.currentWorkoutLoss},{handler.currentBodyStorage}')
-        # if not handler.liveEvents:
-        if  handler.liveEvents[0].eventHistory.isEventFinished:
-            print('ther are not live events')
+        eventHistory = handler.forward()
+        if eventHistory.isFinished:
+            print(f'finished:{eventHistory.totalLiquidLoss[-1]},{eventHistory.bladderFillingLevels[-1]}', {eventHistory.workoutLoss[-1]},{eventHistory.bodyStorage[-1]})
             break
+    for e in handler.deadEvents:
+        print(e.eventHistory.totalLiquidLoss[-1])
+
+    fig,axes = plt.subplots(4,1,figsize=(15,15))
+
+    l = [eventHistory.totalLiquidLoss[:60],eventHistory.bladderFillingLevels[:60], eventHistory.workoutLoss[:60],eventHistory.bodyStorage[:60]]
+    title = ['Total Liquid Loss vs Time (mins)', 'Total bladder volume vs Time (mins)', 'Total workout liquid loss vs Time (mins)', 'Total liquid stored in body vs Time (mins)']
+    for i, ax in enumerate(axes):
+        ax.plot(l[i])
+        ax.set_title(title[i])
+        ax.set_ylabel('Liquid volume (ml)')
+        ax.set_xlabel('Time (mins)')
+        plt.tight_layout()
+    
+    plt.savefig('testeventhandler.png')
+    
+    # for t in range(1440):
+    #     handler.forward()
+    #     print(f'{t},{handler.liveEvents[0].eventHistory.isFinished},{handler.currentBladderFillingLevel},{handler.currentWorkoutLoss},{handler.currentBodyStorage}')
+    #     # if not handler.liveEvents:
+    #     if  handler.liveEvents[0].eventHistory.isFinished:
+    #         print('ther are not live events')
+    #         break
     
