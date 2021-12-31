@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import scipy.stats
 import numpy as np
 
-from fluideventhistory import FluidEventHistory
+from eventhistory import FluidEventHistory
 '''
 Suggested sigma:3-6 mins
 Suggested mu: 40-60 mins
@@ -61,13 +61,13 @@ class FluidEvent:
             fillingAmount = (self.intake*area)
         return fillingAmount
     
-    def body(self)->float:
+    def body(self,t:int)->float:
         """Returns amount of liquid stored in the body per minute
 
         Args:
             t (int): time in minutes after first taking the fluid 
 
-        Returns:
+        Retuns:
             float: amount of liquid stored in the body. Currently, 0.4ml/min
         """
         if t <=self.start:
@@ -86,11 +86,11 @@ class FluidEvent:
         workoutLiquidLoss = [1e-3,5,17.5,30] #gotten from paper 
         return workoutLiquidLoss[workoutIntensity]
     
-    def updateCurrentBodyStorage(self):
+    def updateCurrentBodyStorage(self,t:int):
         """Find the total amount of liquid stored in the body.
         """
-        if self.getTotalLiquidLoss() + self.body() <= self.intake:
-            self.currentBodyStorage += self.body()
+        if self.getTotalLiquidLoss() + self.body(t) <= self.intake:
+            self.currentBodyStorage += self.body(t)
         else:
             self.currentBodyStorage += max(0,self.intake - self.getTotalLiquidLoss())
 
@@ -150,7 +150,7 @@ class FluidEvent:
             (FluidEventHistory): EventHistory containing the log of fluidEvent.
         """
         self.currentEventMins += 1
-        self.updateCurrentBodyStorage()
+        self.updateCurrentBodyStorage(self.currentEventMins)
 
         self.updateCurrentBladderFillingLevels(self.currentEventMins)
 
@@ -173,18 +173,21 @@ if '__main__' == __name__:
     bladderFillings = []
     totalFillings  = []
     for t in range(1440):
-        eventHistory = event.forward(t)
+        eventHistory = event.forward()
         if eventHistory.isEventFinished:
             print(f'finished:{t}')
             break
-    fig,axes = plt.subplots(4,1)
-    axes[0].plot(eventHistory.totalLiquidLoss[:60])
-    axes[1].plot(eventHistory.bladderFillingLevels[:60])
-    axes[2].plot(eventHistory.workoutLoss[:60])
-    axes[3].plot(eventHistory.bodyStorage[:60])
-    plt.savefig('test.png')
+    # fig,axes = plt.subplots(4,1)
+    # axes[0].plot(eventHistory.totalLiquidLoss[:60])
+    # axes[1].plot(eventHistory.bladderFillingLevels[:60])
+    # axes[2].plot(eventHistory.workoutLoss[:60])
+    # axes[3].plot(eventHistory.bodyStorage[:60])
+    # plt.savefig('test.png')
     print(eventHistory.totalLiquidLoss[-1])
-    print(eventHistory.isEventFinished)
+    print(eventHistory.bladderFillingLevels[-1])
+    print(eventHistory.workoutLoss[-1])
+    print(eventHistory.bodyStorage[-1])
+    # print(eventHistory.isEventFinished)
     # print(eventHistory.bladderFillingLevels.tolist())
     
     pass
