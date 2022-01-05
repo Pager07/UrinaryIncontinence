@@ -83,13 +83,18 @@ class EventHandler(FluidEvent):
         if eventHistory.isFinished:
             self.deadEvents.append(fluidEvent)
             self.liveEvents.remove(fluidEvent)
-     
+    
+    def emptyBaldder(self,event:FluidEvent):
+        
+        pass 
        
     def forward(self):
+        shouldUpdateEventHistory = len(self.liveEvents)
         for event in self.liveEvents:
             self.handleSingleEvent(event)
         #after going through the live-events once; update the event history once 
-        self.updateEventHistory()
+        if shouldUpdateEventHistory:
+            self.updateEventHistory()
         return self.eventHistory
 
     
@@ -98,21 +103,25 @@ if __name__ == '__main__':
     handler = EventHandler()
     fluidEvent = FluidEvent(100)
     fluidEvent2 = FluidEvent(100)
-    handler.addEvent(fluidEvent)
-    handler.addEvent(fluidEvent2)
+    # handler.addEvent(fluidEvent)
+    # handler.addEvent(fluidEvent2)
     
     # handler.forward()
     for t in range(1440):
+        print(t)
+        if t ==0:
+            handler.addEvent(fluidEvent)
+        if t == 10:
+            handler.addEvent(fluidEvent2)
         eventHistory = handler.forward()
-        if eventHistory.isFinished:
-            print(f'finished:{eventHistory.totalLiquidLoss[-1]},{eventHistory.bladderFillingLevels[-1]}', {eventHistory.workoutLoss[-1]},{eventHistory.bodyStorage[-1]})
-            break
+        print(f'finished:{t},{eventHistory.totalLiquidLoss[-1]},{eventHistory.bladderFillingLevels[-1]}', {eventHistory.workoutLoss[-1]},{eventHistory.bodyStorage[-1]})
+
     for e in handler.deadEvents:
         print(e.eventHistory.totalLiquidLoss[-1])
 
     fig,axes = plt.subplots(4,1,figsize=(15,15))
 
-    l = [eventHistory.totalLiquidLoss[:60],eventHistory.bladderFillingLevels[:60], eventHistory.workoutLoss[:60],eventHistory.bodyStorage[:60]]
+    l = [eventHistory.totalLiquidLoss[:],eventHistory.bladderFillingLevels[:], eventHistory.workoutLoss[:],eventHistory.bodyStorage[:]]
     title = ['Total Liquid Loss vs Time (mins)', 'Total bladder volume vs Time (mins)', 'Total workout liquid loss vs Time (mins)', 'Total liquid stored in body vs Time (mins)']
     for i, ax in enumerate(axes):
         ax.plot(l[i])
