@@ -8,7 +8,7 @@ class EventHandler(FluidEvent):
     def __init__(self) -> None:
         self.liveEvents = []
         self.deadEvents = []
-        self.currentBladderFillingLevel,self.currentBodyStorage, self.currentWorkoutLoss = 0,0,0
+        self.bladderLoss ,self.currentBladderFillingLevel,self.currentBodyStorage, self.currentWorkoutLoss = 0,0,0,0
         self.totalLiquidLoss = 0
         self.eventHistory = FluidEventHistory()
 
@@ -32,13 +32,15 @@ class EventHandler(FluidEvent):
         Returns:
             float: The total amount of fluid take out by body so far
         """
-        return self.currentBladderFillingLevel + self.currentBodyStorage + self.currentWorkoutLoss
+        return self.bladderLoss + self.currentBodyStorage + self.currentWorkoutLoss
 
     def updateEventHistory(self):
         """Updates the event history after time t
         """
         self.eventHistory.bladderFillingLevels = np.append(self.eventHistory.bladderFillingLevels,
                                                    self.currentBladderFillingLevel)
+        self.eventHistory.bladderLoss = np.append(self.eventHistory.bladderLoss,
+                                                 self.bladderLoss)
         self.eventHistory.bodyStorage = np.append(self.eventHistory.bodyStorage,self.currentBodyStorage)
         self.eventHistory.workoutLoss = np.append(self.eventHistory.workoutLoss,self.currentWorkoutLoss)
         self.eventHistory.totalLiquidLoss = np.append(self.eventHistory.totalLiquidLoss,self.getTotalLiquidLoss())
@@ -51,6 +53,15 @@ class EventHandler(FluidEvent):
         else:
             delta = eventHistory.bladderFillingLevels[-1] - 0
             self.currentBladderFillingLevel +=  delta
+    
+    def updateBladderLoss(self,eventHistory:FluidEventHistory):
+        if len(eventHistory.bladderLoss)>1:
+            delta = eventHistory.bladderLoss[-1] - eventHistory.bladderLoss[-2]
+            self.bladderLoss += delta 
+        else:
+            delta = eventHistory.bladderLoss[-1] - 0
+            self.bladderLoss +=  delta
+    
     
     def updateBodyStorage(self,eventHistory:FluidEventHistory):
         if len(eventHistory.bodyStorage)>1:
@@ -69,14 +80,15 @@ class EventHandler(FluidEvent):
             self.currentWorkoutLoss +=  delta
 
     
-    def handleSingleEvent(self,fluidEvent:FluidEventHistory):
+    def handleSingleEvent(self,fluidEvent:FluidEventHistory,micturtion:bool = False):
         """Given a single fluid event, it will update the liquid loss
 
         Args:
             fluidEvent (FluidEventHistory): 
         """
-        eventHistory = fluidEvent.forward()
+        eventHistory = fluidEvent.forward(micturtion)
         self.updateBladderCurrentFillingLevels(eventHistory)
+        self.updateBladderLoss(eventHistory)
         self.updateBodyStorage(eventHistory)
         self.updateWorkoutLoss(eventHistory)
         
@@ -88,10 +100,10 @@ class EventHandler(FluidEvent):
         
         pass 
        
-    def forward(self):
+    def forward(self,micturtion:bool = False)->FluidEventHistory:
         shouldUpdateEventHistory = len(self.liveEvents)
         for event in self.liveEvents:
-            self.handleSingleEvent(event)
+            self.handleSingleEvent(event,micturtion=micturtion)
         #after going through the live-events once; update the event history once 
         if shouldUpdateEventHistory:
             self.updateEventHistory()
@@ -108,21 +120,24 @@ if __name__ == '__main__':
     
     # handler.forward()
     for t in range(1440):
-        print(t)
+        # print(t)
         if t ==0:
             handler.addEvent(fluidEvent)
         if t == 10:
             handler.addEvent(fluidEvent2)
-        eventHistory = handler.forward()
-        print(f'finished:{t},{eventHistory.totalLiquidLoss[-1]},{eventHistory.bladderFillingLevels[-1]}', {eventHistory.workoutLoss[-1]},{eventHistory.bodyStorage[-1]})
+        if t == 50:
+            eventHistory = handler.forward(micturtion=True)
+        else:
+            eventHistory = handler.forward()
+        # print(f'finished:{t},{eventHistory.totalLiquidLoss[-1]},{eventHistory.bladderFillingLevels[-1]}', {eventHistory.workoutLoss[-1]},{eventHistory.bodyStorage[-1]})
 
     for e in handler.deadEvents:
-        print(e.eventHistory.totalLiquidLoss[-1])
+        print(e.eventHistory.bladderLoss[:])
 
-    fig,axes = plt.subplots(4,1,figsize=(15,15))
+    fig,axes = plt.subplots(5,1,figsize=(15,15))
 
-    l = [eventHistory.totalLiquidLoss[:],eventHistory.bladderFillingLevels[:], eventHistory.workoutLoss[:],eventHistory.bodyStorage[:]]
-    title = ['Total Liquid Loss vs Time (mins)', 'Total bladder volume vs Time (mins)', 'Total workout liquid loss vs Time (mins)', 'Total liquid stored in body vs Time (mins)']
+    l = [eventHistory.totalLiquidLoss[:],eventHistory.bladderLoss[:],eventHistory.bladderFillingLevels[:], eventHistory.workoutLoss[:],eventHistory.bodyStorage[:]]
+    title = ['Total Liquid Loss vs Time (mins)', 'Total bladder Loss vs Time (mins)' ,'Total bladder volume vs Time (mins)', 'Total workout liquid loss vs Time (mins)', 'Total liquid stored in body vs Time (mins)']
     for i, ax in enumerate(axes):
         ax.plot(l[i])
         ax.set_title(title[i])
